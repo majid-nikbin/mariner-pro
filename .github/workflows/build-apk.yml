@@ -27,7 +27,7 @@ jobs:
       - name: Install Project Dependencies
         run: npm install
 
-      - name: Build Web Assets (Vite Production)
+      - name: Build Web Assets
         run: npm run build
 
       - name: Install & Configure Capacitor
@@ -38,47 +38,25 @@ jobs:
 
       - name: Inject Marine Compass App Icon
         run: |
-          python3 -c "
-          import os, shutil
-          src = 'public/app-icon.jpg'
-          if not os.path.exists(src):
-              src = 'src/assets/images/app_marine_compass_icon_1787315506167.jpg'
+          ICON_SRC="public/app-icon.jpg"
+          if [ ! -f "$ICON_SRC" ]; then
+            ICON_SRC="src/assets/images/app_marine_compass_icon_1787315506167.jpg"
+          fi
           
-          print('Injecting icon from:', src)
-          densities = ['mipmap-mdpi', 'mipmap-hdpi', 'mipmap-xhdpi', 'mipmap-xxhdpi', 'mipmap-xxxhdpi']
-          for d in densities:
-              target_dir = os.path.join('android', 'app', 'src', 'main', 'res', d)
-              os.makedirs(target_dir, exist_ok=True)
-              shutil.copyfile(src, os.path.join(target_dir, 'ic_launcher.png'))
-              shutil.copyfile(src, os.path.join(target_dir, 'ic_launcher_round.png'))
-              shutil.copyfile(src, os.path.join(target_dir, 'ic_launcher_foreground.png'))
-          print('Successfully injected icons into all Android mipmap directories!')
-          "
+          for d in mipmap-mdpi mipmap-hdpi mipmap-xhdpi mipmap-xxhdpi mipmap-xxxhdpi; do
+            TARGET_DIR="android/app/src/main/res/$d"
+            mkdir -p "$TARGET_DIR"
+            cp "$ICON_SRC" "$TARGET_DIR/ic_launcher.png"
+            cp "$ICON_SRC" "$TARGET_DIR/ic_launcher_round.png"
+            cp "$ICON_SRC" "$TARGET_DIR/ic_launcher_foreground.png"
+          done
 
-      - name: Configure Android Permissions, Hardware Access & APK Size Optimization
+      - name: Configure Android Permissions & Hardware Access
         run: |
           MANIFEST_PATH="android/app/src/main/AndroidManifest.xml"
           if [ -f "$MANIFEST_PATH" ]; then
             sed -i '/<\/manifest>/i \    <uses-feature android:name="android.hardware.usb.host" android:required="false" />\n    <uses-permission android:name="android.permission.USB_PERMISSION" />\n    <uses-permission android:name="android.permission.WAKE_LOCK" />\n    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />\n    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />' $MANIFEST_PATH
           fi
-
-          # Strip x86 emulator binaries to drastically reduce APK size
-          python3 -c "
-          gradle_file = 'android/app/build.gradle'
-          with open(gradle_file, 'r') as f:
-              code = f.read()
-          abi_filter = '''
-        ndk {
-            abiFilters 'armeabi-v7a', 'arm64-v8a'
-        }
-'''
-          if 'defaultConfig {' in code and 'abiFilters' not in code:
-              code = code.replace('defaultConfig {', 'defaultConfig {' + abi_filter)
-          with open(gradle_file, 'w') as f:
-              f.write(code)
-          print('Injected ARM ABI filters to drastically reduce APK size!')
-          "
-
           npx cap sync android
 
       - name: Setup Gradle
