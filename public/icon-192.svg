@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" width="192" height="192">
+  <rect width="192" height="192" rx="40" fill="#0F172A"/>
+  <circle cx="96" cy="96" r="78" fill="#020617" stroke="#1E293B" stroke-width="4"/>
+  <circle cx="96" cy="96" r="66" fill="none" stroke="#22D3EE" stroke-width="2" stroke-dasharray="4 4" opacity="0.6"/>
+  <!-- North Arrow (Red) -->
+  <polygon points="96,38 108,96 96,86" fill="#EF4444"/>
+  <polygon points="96,38 84,96 96,86" fill="#DC2626"/>
+  <!-- South Arrow (Cyan) -->
+  <polygon points="96,154 108,96 96,106" fill="#22D3EE"/>
+  <polygon points="96,154 84,96 96,106" fill="#06B6D4"/>
+  <!-- Center Cap -->
+  <circle cx="96" cy="96" r="10" fill="#0F172A" stroke="#22D3EE" stroke-width="2"/>
+  <circle cx="96" cy="96" r="3" fill="#22D3EE"/>
+</svg>

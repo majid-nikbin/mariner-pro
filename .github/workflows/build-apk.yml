@@ -3,7 +3,7 @@ name: Build Offline Android APK
 on:
   push:
     branches: [ main, master ]
-  workflow_dispatch:
+  workflow_dispatch: # Allows manual trigger with a single button click in GitHub
 
 jobs:
   build-apk:
@@ -25,34 +25,36 @@ jobs:
           distribution: 'zulu'
           java-version: '17'
 
-      - name: Install Dependencies
-        run: npm install
+      - name: Install Project Dependencies
+        run: npm ci || npm install
 
-      - name: Build Web Assets
+      - name: Build Web Assets (Vite Production)
         run: npm run build
 
-      - name: Setup Capacitor Android
+      - name: Install & Configure Capacitor
         run: |
           npm install @capacitor/core @capacitor/cli @capacitor/android
           npx cap init "Mariner Pro" "com.mariner.pro" --web-dir "dist"
           npx cap add android
 
-      - name: Inject Android Permissions
+      - name: Inject Android Permissions (USB OTG, Sensors, WakeLock)
         run: |
           MANIFEST_PATH="android/app/src/main/AndroidManifest.xml"
           if [ -f "$MANIFEST_PATH" ]; then
+            # Insert USB and Sensor hardware permissions before </manifest>
             sed -i '/<\/manifest>/i \    <uses-feature android:name="android.hardware.usb.host" android:required="true" />\n    <uses-permission android:name="android.permission.USB_PERMISSION" />\n    <uses-permission android:name="android.permission.WAKE_LOCK" />\n    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />\n    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />' $MANIFEST_PATH
           fi
           npx cap sync android
 
-      - name: Build APK
+      - name: Build Android APK with Gradle
         run: |
           cd android
           chmod +x gradlew
           ./gradlew assembleDebug --no-daemon
 
-      - name: Upload APK
+      - name: Upload Ready-to-Install APK
         uses: actions/upload-artifact@v4
         with:
           name: Mariner-Pro-Offline-APK
           path: android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 30
