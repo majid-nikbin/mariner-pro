@@ -13,16 +13,16 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
+      - name: Set up Java JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
-
-      - name: Set up Java JDK 21
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'zulu'
-          java-version: '21'
 
       - name: Install Project Dependencies
         run: npm install
@@ -32,23 +32,35 @@ jobs:
 
       - name: Install & Configure Capacitor
         run: |
-          npm install @capacitor/core @capacitor/cli @capacitor/android
+          npm install @capacitor/core@latest @capacitor/cli@latest @capacitor/android@latest
           npx cap init "Mariner Pro" "com.mariner.pro" --web-dir "dist"
           npx cap add android
 
-      - name: Inject Android Hardware Permissions (USB OTG, Sensors, WakeLock)
+      - name: Configure Android Project & Java 21 Compatibility
         run: |
+          # Ensure Gradle wrapper uses Java 21 and latest Android Gradle Plugin
           MANIFEST_PATH="android/app/src/main/AndroidManifest.xml"
           if [ -f "$MANIFEST_PATH" ]; then
             sed -i '/<\/manifest>/i \    <uses-feature android:name="android.hardware.usb.host" android:required="true" />\n    <uses-permission android:name="android.permission.USB_PERMISSION" />\n    <uses-permission android:name="android.permission.WAKE_LOCK" />\n    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />\n    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />' $MANIFEST_PATH
           fi
+          
+          # Fix Java compile compatibility to Java 21 across all gradle configs
+          BUILD_GRADLE="android/app/build.gradle"
+          if [ -f "$BUILD_GRADLE" ]; then
+            sed -i 's/JavaVersion.VERSION_17/JavaVersion.VERSION_21/g' $BUILD_GRADLE
+            sed -i 's/JavaVersion.VERSION_1_8/JavaVersion.VERSION_21/g' $BUILD_GRADLE
+          fi
+          
           npx cap sync android
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
 
       - name: Build Android APK with Gradle
         run: |
           cd android
           chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon
+          ./gradlew assembleDebug --no-daemon --stacktrace
 
       - name: Upload Ready-to-Install APK
         uses: actions/upload-artifact@v4
