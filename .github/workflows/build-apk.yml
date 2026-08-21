@@ -36,26 +36,24 @@ jobs:
           npx cap init "Mariner Pro" "com.mariner.pro" --web-dir "dist"
           npx cap add android
 
-      - name: Generate & Inject Custom Marine Compass App Icon (All Densities)
+      - name: Inject Marine Compass App Icon
         run: |
-          ICON_SRC="public/app-icon.jpg"
-          if [ ! -f "$ICON_SRC" ]; then
-            ICON_SRC="src/assets/images/app_marine_compass_icon_1787315506167.jpg"
-          fi
-
-          echo "Source Icon: $ICON_SRC"
+          python3 -c "
+          import os, shutil
+          src = 'public/app-icon.jpg'
+          if not os.path.exists(src):
+              src = 'src/assets/images/app_marine_compass_icon_1787315506167.jpg'
           
-          declare -A RES_MAP=( ["mipmap-mdpi"]=48 ["mipmap-hdpi"]=72 ["mipmap-xhdpi"]=96 ["mipmap-xxhdpi"]=144 ["mipmap-xxxhdpi"]=192 )
-          
-          for FOLDER in "${!RES_MAP[@]}"; do
-            SIZE="${RES_MAP[$FOLDER]}"
-            TARGET_DIR="android/app/src/main/res/$FOLDER"
-            mkdir -p "$TARGET_DIR"
-            convert "$ICON_SRC" -resize "${SIZE}x${SIZE}!" "$TARGET_DIR/ic_launcher.png"
-            convert "$ICON_SRC" -resize "${SIZE}x${SIZE}!" "$TARGET_DIR/ic_launcher_round.png"
-            convert "$ICON_SRC" -resize "${SIZE}x${SIZE}!" "$TARGET_DIR/ic_launcher_foreground.png"
-            echo "Generated ${SIZE}x${SIZE} icons for $FOLDER"
-          done
+          print('Injecting icon from:', src)
+          densities = ['mipmap-mdpi', 'mipmap-hdpi', 'mipmap-xhdpi', 'mipmap-xxhdpi', 'mipmap-xxxhdpi']
+          for d in densities:
+              target_dir = os.path.join('android', 'app', 'src', 'main', 'res', d)
+              os.makedirs(target_dir, exist_ok=True)
+              shutil.copyfile(src, os.path.join(target_dir, 'ic_launcher.png'))
+              shutil.copyfile(src, os.path.join(target_dir, 'ic_launcher_round.png'))
+              shutil.copyfile(src, os.path.join(target_dir, 'ic_launcher_foreground.png'))
+          print('Successfully injected icons into all Android mipmap directories!')
+          "
 
       - name: Configure Android Permissions & Hardware Access
         run: |
