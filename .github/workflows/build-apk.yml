@@ -32,43 +32,31 @@ jobs:
 
       - name: Install & Configure Capacitor
         run: |
-          npm install @capacitor/core @capacitor/cli @capacitor/android @capacitor/app
+          npm install @capacitor/core @capacitor/cli @capacitor/android @capacitor/app @capacitor/browser
           npx cap init "Mariner Pro" "com.mariner.pro" --web-dir "dist"
           npx cap add android
 
       - name: Generate & Inject Custom Marine Compass App Icon (All Densities)
         run: |
-          npm install sharp
-          node -e '
-            const sharp = require("sharp");
-            const fs = require("fs");
-            const path = require("path");
+          ICON_SRC="public/app-icon.jpg"
+          if [ ! -f "$ICON_SRC" ]; then
+            ICON_SRC="src/assets/images/app_marine_compass_icon_1787315506167.jpg"
+          fi
 
-            const iconSource = fs.existsSync("public/app-icon.jpg") 
-              ? "public/app-icon.jpg" 
-              : "src/assets/images/app_marine_compass_icon_1787315506167.jpg";
-
-            const resMap = {
-              "mipmap-mdpi": 48,
-              "mipmap-hdpi": 72,
-              "mipmap-xhdpi": 96,
-              "mipmap-xxhdpi": 144,
-              "mipmap-xxxhdpi": 192
-            };
-
-            async function generateIcons() {
-              for (const [folder, size] of Object.entries(resMap)) {
-                const targetDir = path.join("android/app/src/main/res", folder);
-                if (fs.existsSync(targetDir)) {
-                  await sharp(iconSource).resize(size, size).toFile(path.join(targetDir, "ic_launcher.png"));
-                  await sharp(iconSource).resize(size, size).toFile(path.join(targetDir, "ic_launcher_round.png"));
-                  await sharp(iconSource).resize(size, size).toFile(path.join(targetDir, "ic_launcher_foreground.png"));
-                }
-              }
-              console.log("Custom Antique Marine Compass Icons successfully injected into all Android mipmap folders!");
-            }
-            generateIcons();
-          '
+          echo "Source Icon: $ICON_SRC"
+          
+          # Android mipmap densities and dimensions
+          declare -A RES_MAP=( ["mipmap-mdpi"]=48 ["mipmap-hdpi"]=72 ["mipmap-xhdpi"]=96 ["mipmap-xxhdpi"]=144 ["mipmap-xxxhdpi"]=192 )
+          
+          for FOLDER in "${!RES_MAP[@]}"; do
+            SIZE="${RES_MAP[$FOLDER]}"
+            TARGET_DIR="android/app/src/main/res/$FOLDER"
+            mkdir -p "$TARGET_DIR"
+            convert "$ICON_SRC" -resize "${SIZE}x${SIZE}!" "$TARGET_DIR/ic_launcher.png"
+            convert "$ICON_SRC" -resize "${SIZE}x${SIZE}!" "$TARGET_DIR/ic_launcher_round.png"
+            convert "$ICON_SRC" -resize "${SIZE}x${SIZE}!" "$TARGET_DIR/ic_launcher_foreground.png"
+            echo "Generated ${SIZE}x${SIZE} icons for $FOLDER"
+          done
 
       - name: Configure Android Permissions & Hardware Access
         run: |
