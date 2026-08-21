@@ -1,3 +1,4 @@
+// Mariner Pro Marine Navigation & NMEA Bridge System v1.1.0
 import React, { useState, useEffect, useRef } from 'react';
 import { CompassData, GpsData, HeadingSource, NmeaConfig, SerialPortStatus } from './types';
 import { useSensors } from './hooks/useSensors';
@@ -33,54 +34,17 @@ export default function App() {
     showAboutModalRef.current = showAboutModal;
   }, [showAboutModal]);
 
-  // Handle Android Hardware Back Button / Browser Back Button
+  // Handle Android Hardware Back Button (Capacitor Native)
   useEffect(() => {
-    window.history.pushState({ page: 'marine-app' }, '', '');
+    let backListener: any = null;
 
-    const handlePopState = () => {
-      // 1. If About / Info modal is open, close it first without leaving page
-      if (showAboutModalRef.current) {
-        setShowAboutModal(false);
-        window.history.pushState({ page: 'marine-app' }, '', '');
-        return;
-      }
-
-      // 2. If currently on a sub-tab, return to Main Navigation screen
-      if (activeTabRef.current !== 'nav') {
-        setActiveTab('nav');
-        window.history.pushState({ page: 'marine-app' }, '', '');
-        return;
-      }
-
-      // 3. If already on Main Navigation screen, require double tap within 2 seconds to exit
-      const now = Date.now();
-      if (now - lastBackPressTime.current < 2000) {
-        const cap = (window as any).Capacitor;
-        if (cap && cap.Plugins && cap.Plugins.App) {
-          cap.Plugins.App.exitApp();
-        } else {
-          window.history.back();
-        }
-      } else {
-        lastBackPressTime.current = now;
-        setExitToast('Press BACK again to exit Mariner Pro');
-        setTimeout(() => setExitToast(null), 2000);
-        window.history.pushState({ page: 'marine-app' }, '', '');
-      }
-    };
-
-    window.addEventListener('popstate', handlePopState);
-
-    // Also attach Capacitor Android hardware back button listener
     const attachCapacitorBackButton = async () => {
       const cap = (window as any).Capacitor;
       if (cap && cap.Plugins && cap.Plugins.App) {
         try {
-          await cap.Plugins.App.addListener('backButton', () => {
+          backListener = await cap.Plugins.App.addListener('backButton', () => {
             if (showAboutModalRef.current) {
               setShowAboutModal(false);
-            } else if (activeTabRef.current !== 'nav') {
-              setActiveTab('nav');
             } else {
               const now = Date.now();
               if (now - lastBackPressTime.current < 2000) {
@@ -101,7 +65,9 @@ export default function App() {
     attachCapacitorBackButton();
 
     return () => {
-      window.removeEventListener('popstate', handlePopState);
+      if (backListener && typeof backListener.remove === 'function') {
+        backListener.remove();
+      }
     };
   }, []);
 

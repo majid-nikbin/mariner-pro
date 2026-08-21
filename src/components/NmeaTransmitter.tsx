@@ -9,11 +9,13 @@ import {
   Globe, 
   ExternalLink,
   CheckCircle2,
-  X
+  X,
+  Copy
 } from 'lucide-react';
 import { CompassData, GpsData, NmeaConfig, SerialPortStatus } from '../types';
 import { AVAILABLE_SENTENCES, generateNmeaSentences } from '../utils/nmea';
 import { serialService } from '../services/serialService';
+import { Browser } from '@capacitor/browser';
 
 interface NmeaTransmitterProps {
   gps: GpsData;
@@ -36,9 +38,17 @@ export const NmeaTransmitter: React.FC<NmeaTransmitterProps> = ({
   const [liveSentences, setLiveSentences] = useState<string[]>([]);
   const [isConnecting, setIsConnecting] = useState<boolean>(false);
   const [showUsbPopup, setShowUsbPopup] = useState<boolean>(false);
+  const [copiedLink, setCopiedLink] = useState<boolean>(false);
 
-  // Detect if running inside native Android APK (Capacitor) vs Web Browser
-  const isInsideApk = typeof window !== 'undefined' && !!(window as any).Capacitor?.isNativePlatform?.();
+  // Live public Web URL that runs fully offline in Chrome WebUSB
+  const LIVE_CHROME_WEB_URL = "https://ais-pre-47mtqh2agf55ojcyu7craj-671128760309.us-west2.run.app";
+
+  // Check if running inside installed Android APK (Capacitor)
+  const isInsideApk = typeof window !== 'undefined' && (
+    !!(window as any).Capacitor?.isNativePlatform?.() || 
+    window.location.protocol === 'capacitor:' || 
+    window.location.protocol === 'http:' && window.location.hostname === 'localhost'
+  );
 
   // Generate real-time preview of sentences
   useEffect(() => {
@@ -61,7 +71,7 @@ export const NmeaTransmitter: React.FC<NmeaTransmitterProps> = ({
   // Click on "Connect USB OTG"
   const handleConnectUsbClick = async () => {
     if (isInsideApk) {
-      // In native APK: show guidance popup to launch in Chrome with WebUSB
+      // In native APK: show popup explaining Web Chrome direct OTG support
       setShowUsbPopup(true);
       return;
     }
@@ -81,11 +91,32 @@ export const NmeaTransmitter: React.FC<NmeaTransmitterProps> = ({
     }
   };
 
-  // Launch offline browser URL for WebUSB hardware support
-  const handleOpenInBrowser = () => {
-    const currentUrl = window.location.href;
-    window.open(currentUrl, '_system');
+  // Open Chrome browser on Android device
+  const handleOpenInBrowser = async () => {
+    const targetUrl = LIVE_CHROME_WEB_URL;
+    
+    try {
+      // 1. Try official Capacitor Browser plugin
+      await Browser.open({ url: targetUrl, windowName: '_system' });
+      setShowUsbPopup(false);
+      return;
+    } catch (e) {
+      console.warn('Capacitor Browser open fallback:', e);
+    }
+
+    // 2. Fallback to external window open
+    try {
+      window.open(targetUrl, '_blank');
+    } catch (err) {
+      console.warn('Window open failed:', err);
+    }
     setShowUsbPopup(false);
+  };
+
+  const handleCopyLink = () => {
+    navigator.clipboard?.writeText(LIVE_CHROME_WEB_URL);
+    setCopiedLink(true);
+    setTimeout(() => setCopiedLink(false), 2500);
   };
 
   const handleConnectSimulator = () => {
@@ -99,7 +130,7 @@ export const NmeaTransmitter: React.FC<NmeaTransmitterProps> = ({
   };
 
   const toggleSentence = (id: string) => {
-    const current = !!config.activeSentences[id];
+    const current = !config.activeSentences || !config.activeSentences[id] ? false : true;
     onConfigChange({
       ...config,
       activeSentences: {
@@ -230,20 +261,21 @@ export const NmeaTransmitter: React.FC<NmeaTransmitterProps> = ({
         </div>
       </div>
 
-      {/* USB Connection Popup Modal */}
+      {/* USB Connection Popup Modal with Direct Chrome Launch */}
       {showUsbPopup && (
         <div 
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fadeIn"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md animate-fadeIn"
           onClick={() => setShowUsbPopup(false)}
         >
           <div 
-            className="relative max-w-md w-full bg-slate-900 border border-cyan-500/50 rounded-2xl p-5 shadow-2xl flex flex-col gap-4 text-slate-200"
+            className="relative max-w-md w-full bg-slate-900 border border-cyan-500/60 rounded-2xl p-6 shadow-2xl flex flex-col gap-4 text-slate-200"
             onClick={(e) => e.stopPropagation()}
           >
+            {/* Modal Header */}
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <div className="flex items-center gap-2 text-cyan-300 font-bold text-sm">
+              <div className="flex items-center gap-2.5 text-cyan-300 font-bold text-sm">
                 <Globe className="w-5 h-5 text-cyan-400" />
-                <span>Direct USB OTG Hardware Connection</span>
+                <span>USB Serial Hardware Access (OTG)</span>
               </div>
               <button
                 type="button"
@@ -255,13 +287,13 @@ export const NmeaTransmitter: React.FC<NmeaTransmitterProps> = ({
             </div>
 
             <p className="text-xs text-slate-300 leading-relaxed">
-              To communicate directly with your physical USB OTG serial converter (CH340 / CP2102 / FTDI / MAX485), please open the app in <strong>Google Chrome Browser</strong> on your phone.
+              To communicate directly with physical USB OTG serial hardware (CH340 / CP2102 / FTDI / MAX485), please open the app in <strong>Google Chrome Browser</strong> on your phone.
             </p>
 
-            <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 text-xs font-mono space-y-2 text-slate-300">
+            <div className="p-3.5 bg-slate-950 rounded-xl border border-slate-800 text-xs font-mono space-y-2.5 text-slate-300">
               <div className="flex items-start gap-2">
                 <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-                <span>Works <strong>100% Offline</strong> in Chrome without requiring an internet connection.</span>
+                <span>Works <strong>100% Offline</strong> in Chrome without needing an active internet connection.</span>
               </div>
               <div className="flex items-start gap-2">
                 <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
@@ -269,22 +301,24 @@ export const NmeaTransmitter: React.FC<NmeaTransmitterProps> = ({
               </div>
               <div className="flex items-start gap-2">
                 <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-                <span>You can tap <strong>"Add to Home screen"</strong> in Chrome for a full standalone experience.</span>
+                <span>Tap <strong>"Open in Chrome (WebUSB)"</strong> below or copy the offline URL.</span>
               </div>
             </div>
 
-            <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-slate-800">
+            <div className="flex flex-col sm:flex-row items-center justify-end gap-2.5 pt-2 border-t border-slate-800">
               <button
                 type="button"
-                onClick={() => setShowUsbPopup(false)}
-                className="px-4 py-2 bg-slate-800 hover:bg-slate-750 text-slate-300 text-xs font-bold rounded-lg border border-slate-700"
+                onClick={handleCopyLink}
+                className="w-full sm:w-auto px-3 py-2 bg-slate-800 hover:bg-slate-750 text-slate-300 text-xs font-bold rounded-lg border border-slate-700 flex items-center justify-center gap-1.5"
               >
-                Cancel
+                <Copy className="w-3.5 h-3.5" />
+                <span>{copiedLink ? 'Copied URL!' : 'Copy Web URL'}</span>
               </button>
+
               <button
                 type="button"
                 onClick={handleOpenInBrowser}
-                className="px-5 py-2 bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold rounded-lg flex items-center gap-1.5 shadow-lg shadow-cyan-950/50"
+                className="w-full sm:w-auto px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold rounded-lg flex items-center justify-center gap-1.5 shadow-lg shadow-cyan-950/60"
               >
                 <ExternalLink className="w-4 h-4" />
                 <span>Open in Chrome (WebUSB)</span>
@@ -294,7 +328,7 @@ export const NmeaTransmitter: React.FC<NmeaTransmitterProps> = ({
         </div>
       )}
 
-      {/* Interface Configuration Grid (Compact) */}
+      {/* Interface Configuration Grid */}
       <div className="flex flex-col gap-3">
         <div className="flex justify-between items-center">
           <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">

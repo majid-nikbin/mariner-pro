@@ -293,40 +293,6 @@ export const Header: React.FC<HeaderProps> = ({
             <Activity className="w-3.5 h-3.5" />
             <span>NMEA Monitor</span>
           </button>
-
-          <button
-            id="tab-btn-drivers"
-            type="button"
-            onClick={() => onTabChange('drivers')}
-            className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-3 sm:px-4 py-2 rounded-lg text-xs font-bold font-mono transition-all select-none whitespace-nowrap ${
-              activeTab === 'drivers'
-                ? isNightMode
-                  ? 'bg-red-900/80 text-white border border-red-700 shadow-sm'
-                  : 'bg-cyan-500 text-slate-950 shadow-md shadow-cyan-950 font-black'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
-            }`}
-          >
-            <Cpu className="w-3.5 h-3.5" />
-            <span>USB Drivers</span>
-          </button>
-
-          {/* KeyGen Developer Tab */}
-          {isDevUnlocked && (
-            <button
-              id="tab-btn-keygen"
-              type="button"
-              onClick={handleToggleKeyGen}
-              className={`flex-1 md:flex-none flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold font-mono transition-all select-none whitespace-nowrap border ${
-                activeTab === 'keygen'
-                  ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-md font-black'
-                  : 'text-amber-400 bg-amber-500/10 border-amber-500/30 hover:bg-amber-500/20'
-              }`}
-              title="Open Key Generator"
-            >
-              <KeyRound className="w-3.5 h-3.5" />
-              <span>KeyGen</span>
-            </button>
-          )}
         </nav>
 
         {/* Right: Marine Status Indicators & Night Vision Toggle (Desktop) */}
