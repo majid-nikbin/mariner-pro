@@ -38,13 +38,11 @@ jobs:
 
       - name: Configure Android Project & Java 21 Compatibility
         run: |
-          # Ensure Gradle wrapper uses Java 21 and latest Android Gradle Plugin
           MANIFEST_PATH="android/app/src/main/AndroidManifest.xml"
           if [ -f "$MANIFEST_PATH" ]; then
             sed -i '/<\/manifest>/i \    <uses-feature android:name="android.hardware.usb.host" android:required="true" />\n    <uses-permission android:name="android.permission.USB_PERMISSION" />\n    <uses-permission android:name="android.permission.WAKE_LOCK" />\n    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />\n    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />' $MANIFEST_PATH
           fi
           
-          # Fix Java compile compatibility to Java 21 across all gradle configs
           BUILD_GRADLE="android/app/build.gradle"
           if [ -f "$BUILD_GRADLE" ]; then
             sed -i 's/JavaVersion.VERSION_17/JavaVersion.VERSION_21/g' $BUILD_GRADLE
