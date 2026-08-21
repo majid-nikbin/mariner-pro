@@ -45,7 +45,6 @@ jobs:
 
           echo "Source Icon: $ICON_SRC"
           
-          # Android mipmap densities and dimensions
           declare -A RES_MAP=( ["mipmap-mdpi"]=48 ["mipmap-hdpi"]=72 ["mipmap-xhdpi"]=96 ["mipmap-xxhdpi"]=144 ["mipmap-xxxhdpi"]=192 )
           
           for FOLDER in "${!RES_MAP[@]}"; do
