@@ -12,19 +12,6 @@
     <link rel="manifest" href="./manifest.json" />
     <link rel="icon" type="image/svg+xml" href="./icon-192.svg" />
     <link rel="apple-touch-icon" href="./icon-192.svg" />
-    <script>
-      // Immediate Service Worker registration for instant offline caching
-      if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('./sw.js')
-          .then(function(reg) {
-            console.log('Offline Marine ServiceWorker Registered');
-            if (reg.update) reg.update();
-          })
-          .catch(function(err) {
-            console.warn('SW registration warning (non-fatal):', err);
-          });
-      }
-    </script>
   </head>
   <body class="bg-slate-900 text-slate-100 overflow-x-hidden select-none">
     <div id="root"></div>

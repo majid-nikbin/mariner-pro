@@ -18,33 +18,43 @@ export default function App() {
   const [headingSource, setHeadingSource] = useState<HeadingSource>('magnetic');
   const [isNightMode, setIsNightMode] = useState<boolean>(false);
   const [isActivated, setIsActivated] = useState<boolean>(() => getLicenseStatus().isActivated);
+  const [showAboutModal, setShowAboutModal] = useState<boolean>(false);
   const [exitToast, setExitToast] = useState<string | null>(null);
 
   const lastBackPressTime = useRef<number>(0);
   const activeTabRef = useRef<ActiveTab>(activeTab);
+  const showAboutModalRef = useRef<boolean>(showAboutModal);
 
   useEffect(() => {
     activeTabRef.current = activeTab;
   }, [activeTab]);
 
+  useEffect(() => {
+    showAboutModalRef.current = showAboutModal;
+  }, [showAboutModal]);
+
   // Handle Android Hardware Back Button / Browser Back Button
   useEffect(() => {
-    // Push dummy history state so hardware back button can be intercepted
     window.history.pushState({ page: 'marine-app' }, '', '');
 
     const handlePopState = () => {
-      // 1. If currently on a sub-tab (Transmit, Monitor, Drivers, KeyGen), return to Main Navigation screen
+      // 1. If About / Info modal is open, close it first without leaving page
+      if (showAboutModalRef.current) {
+        setShowAboutModal(false);
+        window.history.pushState({ page: 'marine-app' }, '', '');
+        return;
+      }
+
+      // 2. If currently on a sub-tab, return to Main Navigation screen
       if (activeTabRef.current !== 'nav') {
         setActiveTab('nav');
         window.history.pushState({ page: 'marine-app' }, '', '');
         return;
       }
 
-      // 2. If already on Main Navigation screen, require double tap within 2 seconds to exit
+      // 3. If already on Main Navigation screen, require double tap within 2 seconds to exit
       const now = Date.now();
       if (now - lastBackPressTime.current < 2000) {
-        // Double tap confirmed -> Allow exit/close
-        // If inside Capacitor Android App, try to exit
         const cap = (window as any).Capacitor;
         if (cap && cap.Plugins && cap.Plugins.App) {
           cap.Plugins.App.exitApp();
@@ -61,13 +71,15 @@ export default function App() {
 
     window.addEventListener('popstate', handlePopState);
 
-    // Also attach Capacitor Android hardware back button listener if running in APK
+    // Also attach Capacitor Android hardware back button listener
     const attachCapacitorBackButton = async () => {
       const cap = (window as any).Capacitor;
       if (cap && cap.Plugins && cap.Plugins.App) {
         try {
           await cap.Plugins.App.addListener('backButton', () => {
-            if (activeTabRef.current !== 'nav') {
+            if (showAboutModalRef.current) {
+              setShowAboutModal(false);
+            } else if (activeTabRef.current !== 'nav') {
               setActiveTab('nav');
             } else {
               const now = Date.now();
@@ -178,6 +190,8 @@ export default function App() {
         hasRealCompass={hasRealCompass}
         isNightMode={isNightMode}
         onToggleNightMode={() => setIsNightMode(!isNightMode)}
+        showAboutModal={showAboutModal}
+        setShowAboutModal={setShowAboutModal}
       />
 
       {/* Main Content Area - Fully Scrollable */}

@@ -41,6 +41,8 @@ interface HeaderProps {
   hasRealCompass: boolean;
   isNightMode: boolean;
   onToggleNightMode: () => void;
+  showAboutModal?: boolean;
+  setShowAboutModal?: (show: boolean) => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -51,21 +53,26 @@ export const Header: React.FC<HeaderProps> = ({
   hasRealCompass,
   isNightMode,
   onToggleNightMode,
+  showAboutModal: externalShowAboutModal,
+  setShowAboutModal: externalSetShowAboutModal,
 }) => {
   const [wakeLockActive, setWakeLockActive] = useState<boolean>(false);
   const [wakeLockSentinel, setWakeLockSentinel] = useState<any>(null);
   const [wakeLockToast, setWakeLockToast] = useState<string | null>(null);
   const [isOnline, setIsOnline] = useState<boolean>(typeof navigator !== 'undefined' ? navigator.onLine : true);
   const [isOfflineCached, setIsOfflineCached] = useState<boolean>(false);
-  const [showAboutModal, setShowAboutModal] = useState<boolean>(false);
-  const [isDevUnlocked, setIsDevUnlocked] = useState<boolean>(() => isDeveloperModeUnlocked());
+  
+  const [localShowAboutModal, setLocalShowAboutModal] = useState<boolean>(false);
+  const showAboutModal = externalShowAboutModal !== undefined ? externalShowAboutModal : localShowAboutModal;
+  const setShowAboutModal = externalSetShowAboutModal || setLocalShowAboutModal;
+
+  const [devClickCount, setDevClickCount] = useState<number>(0);
   const [showDevPinPrompt, setShowDevPinPrompt] = useState<boolean>(false);
   const [devPinInput, setDevPinInput] = useState<string>('');
   const [devPinError, setDevPinError] = useState<string | null>(null);
-  const [devClickCount, setDevClickCount] = useState<number>(0);
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
-  const [isStandalone, setIsStandalone] = useState<boolean>(false);
+  const [isDevUnlocked, setIsDevUnlocked] = useState<boolean>(() => isDeveloperModeUnlocked());
 
+  // Listen for online / offline events
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
@@ -73,39 +80,26 @@ export const Header: React.FC<HeaderProps> = ({
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
 
-    // Detect standalone PWA mode
-    if (window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone === true) {
-      setIsStandalone(true);
-    }
-
-    // Capture PWA Install prompt
-    const handleBeforeInstall = (e: Event) => {
-      e.preventDefault();
-      setDeferredPrompt(e);
-    };
-    window.addEventListener('beforeinstallprompt', handleBeforeInstall);
-
-    // Check if Service Worker is active & cache ready
+    // Check if service worker is active and caching assets
     if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
       setIsOfflineCached(true);
-    } else if ('caches' in window) {
-      caches.has('mariner-pro-offline-v16').then((has) => setIsOfflineCached(has));
     }
 
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstall);
     };
   }, []);
 
-  // Re-acquire Wake Lock when tab becomes visible again
+  // Screen Wake Lock Handler
   useEffect(() => {
     const handleVisibilityChange = async () => {
-      if (wakeLockActive && document.visibilityState === 'visible' && 'wakeLock' in navigator) {
+      if (document.visibilityState === 'visible' && wakeLockActive) {
         try {
-          const sentinel = await (navigator as any).wakeLock.request('screen');
-          setWakeLockSentinel(sentinel);
+          if ('wakeLock' in navigator) {
+            const sentinel = await (navigator as any).wakeLock.request('screen');
+            setWakeLockSentinel(sentinel);
+          }
         } catch (err) {
           console.warn('Wake Lock re-acquire failed:', err);
         }
@@ -210,250 +204,183 @@ export const Header: React.FC<HeaderProps> = ({
                       hasRealGps ? 'bg-emerald-400 animate-ping' : 'bg-slate-500'
                     }`}
                   />
-                  {hasRealGps ? 'GNSS Lock' : 'GPS Standby'}
+                  {hasRealGps ? 'GNSS Lock' : 'GPS Waiting'}
                 </span>
               </div>
             </div>
-          </div>            {/* Quick Actions (Mobile) */}
-          <div className="flex md:hidden items-center gap-1.5">
-            {/* Install PWA Button (Mobile) if prompt available and not yet standalone */}
-            {deferredPrompt && !isStandalone && (
-              <button
-                type="button"
-                onClick={async () => {
-                  deferredPrompt.prompt();
-                  const { outcome } = await deferredPrompt.userChoice;
-                  if (outcome === 'accepted') {
-                    setDeferredPrompt(null);
-                    setIsStandalone(true);
-                  }
-                }}
-                title="Install Mariner Pro on Home Screen"
-                className="p-2 rounded-lg border bg-cyan-950 border-cyan-500 text-cyan-300 flex items-center justify-center animate-bounce"
-              >
-                <Download className="w-4 h-4" />
-              </button>
-            )}
+          </div>
 
-            {/* Screen Wake Lock Button (Mobile) - Sun Icon: White when ready, Emerald when active */}
+          {/* Mobile Right Controls: Night Mode & Screen Stay ON */}
+          <div className="flex md:hidden items-center gap-2">
+            {/* Screen Sleep Lock Toggle Button (Mobile) */}
             <button
-              id="btn-wake-lock-mobile"
+              id="btn-wakelock-mobile"
               type="button"
               onClick={toggleWakeLock}
-              title={wakeLockActive ? 'Screen Always ON (Sleep Disabled) - Tap to allow sleep' : 'Keep Screen ON (Prevent Screen Sleep) - Tap to activate'}
-              className={`p-2 rounded-lg border flex items-center justify-center transition-all ${
+              className={`p-2 rounded-xl border text-xs font-mono font-bold flex items-center gap-1.5 transition-all ${
                 wakeLockActive
-                  ? isNightMode
-                    ? 'bg-red-800 border-red-500 text-white shadow-[0_0_12px_rgba(239,68,68,0.5)]'
-                    : 'bg-emerald-950 border-emerald-400 text-emerald-300 shadow-[0_0_12px_rgba(52,211,153,0.5)]'
-                  : 'bg-slate-900 border-slate-600 text-white hover:border-slate-400'
+                  ? 'bg-emerald-950 border-emerald-500/60 text-emerald-300 shadow-[0_0_10px_rgba(16,185,129,0.3)]'
+                  : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-slate-200'
               }`}
+              title="Keep Screen Awake (Prevents phone display from turning off)"
             >
-              <div className="relative">
-                <Sun 
-                  className={`w-4 h-4 transition-colors ${
-                    wakeLockActive 
-                      ? 'text-emerald-400 animate-pulse' 
-                      : 'text-white'
-                  }`} 
-                />
-                {wakeLockActive && (
-                  <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-                )}
-              </div>
+              {wakeLockActive ? <Eye className="w-4 h-4 text-emerald-400" /> : <EyeOff className="w-4 h-4" />}
             </button>
 
-            {/* Mobile Night Mode Toggle */}
+            {/* Night Red Mode Toggle (Mobile) */}
             <button
+              id="btn-night-mode-mobile"
               type="button"
               onClick={onToggleNightMode}
-              title="Toggle Night Vision Mode"
-              className={`p-2 rounded-lg border ${
-                isNightMode ? 'bg-red-900 border-red-600 text-white' : 'bg-slate-900 border-slate-700 text-amber-300'
+              className={`p-2 rounded-xl border text-xs font-mono font-bold flex items-center gap-1.5 transition-all ${
+                isNightMode
+                  ? 'bg-red-950 border-red-800 text-red-400 shadow-[0_0_10px_rgba(239,68,68,0.3)]'
+                  : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-slate-200'
               }`}
+              title="Toggle Night Watch Red Mode"
             >
-              {isNightMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+              {isNightMode ? <Sun className="w-4 h-4 text-red-400" /> : <Moon className="w-4 h-4" />}
             </button>
           </div>
         </div>
 
         {/* Center: Navigation Tabs */}
-        <nav className="flex items-center gap-1.5 bg-slate-900/90 p-1.5 rounded-xl border border-slate-700/80 w-full md:w-auto justify-around sm:justify-start shadow-inner overflow-x-auto">
+        <nav className="flex items-center gap-1.5 bg-slate-900/90 p-1 rounded-xl border border-slate-800 w-full md:w-auto overflow-x-auto">
           <button
-            id="tab-nav"
+            id="tab-btn-nav"
             type="button"
             onClick={() => onTabChange('nav')}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 ${
+            className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-3 sm:px-4 py-2 rounded-lg text-xs font-bold font-mono transition-all select-none whitespace-nowrap ${
               activeTab === 'nav'
                 ? isNightMode
-                  ? 'bg-red-700 text-white shadow-md'
-                  : 'bg-cyan-600 text-white shadow-md'
-                : 'text-slate-400 hover:text-white'
+                  ? 'bg-red-900/80 text-white border border-red-700 shadow-sm'
+                  : 'bg-cyan-500 text-slate-950 shadow-md shadow-cyan-950 font-black'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
             }`}
           >
-            <Compass className="w-4 h-4" />
+            <Compass className="w-3.5 h-3.5" />
             <span>Navigation</span>
           </button>
 
           <button
-            id="tab-transmit"
+            id="tab-btn-transmit"
             type="button"
             onClick={() => onTabChange('transmit')}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 ${
+            className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-3 sm:px-4 py-2 rounded-lg text-xs font-bold font-mono transition-all select-none whitespace-nowrap ${
               activeTab === 'transmit'
                 ? isNightMode
-                  ? 'bg-red-700 text-white shadow-md'
-                  : 'bg-cyan-600 text-white shadow-md'
-                : 'text-slate-400 hover:text-white'
+                  ? 'bg-red-900/80 text-white border border-red-700 shadow-sm'
+                  : 'bg-cyan-500 text-slate-950 shadow-md shadow-cyan-950 font-black'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
             }`}
           >
-            <Radio className="w-4 h-4" />
-            <span>OTG Transmit</span>
+            <Radio className="w-3.5 h-3.5" />
+            <span>NMEA Output</span>
           </button>
 
           <button
-            id="tab-monitor"
+            id="tab-btn-monitor"
             type="button"
             onClick={() => onTabChange('monitor')}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 ${
+            className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-3 sm:px-4 py-2 rounded-lg text-xs font-bold font-mono transition-all select-none whitespace-nowrap ${
               activeTab === 'monitor'
                 ? isNightMode
-                  ? 'bg-red-700 text-white shadow-md'
-                  : 'bg-cyan-600 text-white shadow-md'
-                : 'text-slate-400 hover:text-white'
+                  ? 'bg-red-900/80 text-white border border-red-700 shadow-sm'
+                  : 'bg-cyan-500 text-slate-950 shadow-md shadow-cyan-950 font-black'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
             }`}
           >
-            <Activity className="w-4 h-4" />
-            <span>Monitor (RX)</span>
+            <Activity className="w-3.5 h-3.5" />
+            <span>NMEA Monitor</span>
           </button>
 
           <button
-            id="tab-drivers"
+            id="tab-btn-drivers"
             type="button"
             onClick={() => onTabChange('drivers')}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 ${
+            className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-3 sm:px-4 py-2 rounded-lg text-xs font-bold font-mono transition-all select-none whitespace-nowrap ${
               activeTab === 'drivers'
                 ? isNightMode
-                  ? 'bg-red-700 text-white shadow-md'
-                  : 'bg-cyan-600 text-white shadow-md'
-                : 'text-slate-400 hover:text-white'
+                  ? 'bg-red-900/80 text-white border border-red-700 shadow-sm'
+                  : 'bg-cyan-500 text-slate-950 shadow-md shadow-cyan-950 font-black'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
             }`}
           >
-            <Cpu className="w-4 h-4" />
+            <Cpu className="w-3.5 h-3.5" />
             <span>USB Drivers</span>
           </button>
 
-          {/* KeyGen Tab (Only visible when Developer Mode is unlocked) */}
+          {/* KeyGen Developer Tab */}
           {isDevUnlocked && (
             <button
-              id="tab-keygen"
+              id="tab-btn-keygen"
               type="button"
               onClick={handleToggleKeyGen}
-              title={activeTab === 'keygen' ? 'Click to close Key Gen' : 'Click to open Key Gen'}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 ${
+              className={`flex-1 md:flex-none flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold font-mono transition-all select-none whitespace-nowrap border ${
                 activeTab === 'keygen'
-                  ? 'bg-amber-500 text-slate-950 font-black shadow-[0_0_12px_rgba(245,158,11,0.5)]'
-                  : 'text-amber-400 hover:text-amber-300 bg-amber-950/40 border border-amber-500/30'
+                  ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-md font-black'
+                  : 'text-amber-400 bg-amber-500/10 border-amber-500/30 hover:bg-amber-500/20'
               }`}
+              title="Open Key Generator"
             >
-              <KeyRound className="w-4 h-4" />
-              <span>{activeTab === 'keygen' ? 'Close Key Gen' : 'Key Gen'}</span>
+              <KeyRound className="w-3.5 h-3.5" />
+              <span>KeyGen</span>
             </button>
           )}
         </nav>
 
-        {/* Right: Actions (Desktop) */}
-        <div className="hidden md:flex items-center gap-3">
-          <div
-            title={isOnline ? 'Online / Cache Saved on Device' : 'Offline Marine Mode Active'}
-            className={`px-3 py-1.5 rounded-lg text-xs font-mono font-bold flex items-center gap-2 border ${
-              !isOnline
-                ? 'bg-amber-950/60 border-amber-500/50 text-amber-300'
-                : 'bg-emerald-950/60 border-emerald-500/50 text-emerald-300'
-            }`}
+        {/* Right: Marine Status Indicators & Night Vision Toggle (Desktop) */}
+        <div className="hidden md:flex items-center gap-2.5">
+          {/* Offline PWA Ready Badge */}
+          <div 
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border bg-slate-900/90 border-slate-800 text-[11px] font-mono select-none"
+            title="100% Offline Standalone Capable (Cached with Service Worker)"
           >
-            {!isOnline ? <WifiOff className="w-3.5 h-3.5" /> : <ShieldCheck className="w-3.5 h-3.5" />}
-            <span>{!isOnline ? 'OFFLINE MARINE MODE' : 'OFFLINE CACHE READY'}</span>
+            <WifiOff className="w-3.5 h-3.5 text-cyan-400" />
+            <span className="text-slate-400">Offline:</span>
+            <span className="text-cyan-300 font-bold">READY</span>
           </div>
 
-          <div className="flex items-center gap-2 pl-2 border-l border-slate-700">
-            {/* Install PWA Button (Desktop) if prompt available and not yet standalone */}
-            {deferredPrompt && !isStandalone && (
-              <button
-                type="button"
-                onClick={async () => {
-                  deferredPrompt.prompt();
-                  const { outcome } = await deferredPrompt.userChoice;
-                  if (outcome === 'accepted') {
-                    setDeferredPrompt(null);
-                    setIsStandalone(true);
-                  }
-                }}
-                title="Install Mariner Pro on Desktop / PC"
-                className="px-2.5 py-1.5 rounded-lg border border-cyan-500/50 bg-cyan-950/60 hover:bg-cyan-900 text-cyan-300 text-xs font-mono font-bold flex items-center gap-1.5 transition-all animate-pulse"
-              >
-                <Download className="w-3.5 h-3.5" />
-                <span>INSTALL APP</span>
-              </button>
-            )}
+          {/* Screen Stay ON Toggle (Desktop) */}
+          <button
+            id="btn-wakelock-desktop"
+            type="button"
+            onClick={toggleWakeLock}
+            className={`p-2 rounded-xl border text-xs font-mono font-bold flex items-center gap-1.5 transition-all ${
+              wakeLockActive
+                ? 'bg-emerald-950 border-emerald-500/60 text-emerald-300 shadow-[0_0_12px_rgba(16,185,129,0.3)]'
+                : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-slate-200'
+            }`}
+            title="Keep Screen Awake (Display Always ON for helm watch)"
+          >
+            {wakeLockActive ? <Eye className="w-4 h-4 text-emerald-400" /> : <EyeOff className="w-4 h-4" />}
+          </button>
 
-            {/* Screen Wake Lock Button (Desktop) - Sun Icon: White when ready, Emerald when active */}
-            <button
-              id="btn-wake-lock"
-              type="button"
-              onClick={toggleWakeLock}
-              title={wakeLockActive ? 'Screen Always ON (Sleep Disabled) - Click to enable auto-sleep' : 'Keep Screen ON (Prevent Screen Sleep) - Click to activate'}
-              className={`px-2.5 py-1.5 rounded-lg border text-xs font-bold font-mono flex items-center gap-1.5 transition-all ${
-                wakeLockActive
-                  ? isNightMode
-                    ? 'bg-red-800/90 border-red-500 text-white shadow-[0_0_12px_rgba(239,68,68,0.4)]'
-                    : 'bg-emerald-950/90 border-emerald-400 text-emerald-300 shadow-[0_0_12px_rgba(52,211,153,0.3)]'
-                  : 'bg-slate-900 border-slate-600 text-white hover:border-slate-400 hover:bg-slate-800'
-              }`}
-            >
-              <div className="relative">
-                <Sun 
-                  className={`w-4 h-4 transition-colors ${
-                    wakeLockActive 
-                      ? 'text-emerald-400 animate-pulse' 
-                      : 'text-white'
-                  }`} 
-                />
-                {wakeLockActive && (
-                  <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-                )}
-              </div>
-              <span className="hidden xl:inline text-[11px] font-bold">
-                {wakeLockActive ? 'SCREEN: ALWAYS ON' : 'KEEP SCREEN ON'}
-              </span>
-            </button>
-
-            {/* Night Vision Mode Toggle */}
-            <button
-              id="btn-night-mode"
-              type="button"
-              onClick={onToggleNightMode}
-              title="Toggle Night Vision Mode"
-              className={`p-2 rounded-lg border transition-all ${
-                isNightMode
-                  ? 'bg-red-900 border-red-600 text-white'
-                  : 'bg-slate-900 border-slate-700 text-amber-300 hover:text-amber-200'
-              }`}
-            >
-              {isNightMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-            </button>
-          </div>
+          {/* Night Vision Red Light Toggle (Desktop) */}
+          <button
+            id="btn-night-mode-desktop"
+            type="button"
+            onClick={onToggleNightMode}
+            className={`p-2 rounded-xl border text-xs font-mono font-bold flex items-center gap-1.5 transition-all ${
+              isNightMode
+                ? 'bg-red-950 border-red-800 text-red-400 shadow-[0_0_12px_rgba(239,68,68,0.3)]'
+                : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-slate-200'
+            }`}
+            title="Toggle Night Watch Red Mode"
+          >
+            {isNightMode ? <Sun className="w-4 h-4 text-red-400" /> : <Moon className="w-4 h-4" />}
+          </button>
         </div>
       </div>
 
-      {/* About & Developer Info Modal (Opened by clicking Mariner Pro title) */}
+      {/* About & Developer Info Modal (Clean & Compact) */}
       {showAboutModal && (
         <div
-          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4"
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 animate-fadeIn"
           onClick={() => setShowAboutModal(false)}
         >
           <div
-            className={`w-full max-w-md p-6 rounded-2xl border shadow-2xl flex flex-col gap-5 text-left transition-all ${
+            className={`w-full max-w-md p-6 rounded-2xl border shadow-2xl flex flex-col gap-4 text-left transition-all ${
               isNightMode
                 ? 'bg-zinc-950 border-red-900/80 text-red-100'
                 : 'bg-slate-900 border-slate-700 text-slate-200'
@@ -634,31 +561,11 @@ export const Header: React.FC<HeaderProps> = ({
               )}
             </div>
 
-            {/* Offline App Installation Guide */}
-            <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800 flex flex-col gap-2">
-              <div className="flex items-center gap-2 text-cyan-400 font-bold text-xs">
-                <Download className="w-4 h-4" />
-                <span>100% Offline Standalone Installation</span>
-              </div>
-              <p className="text-[11px] text-slate-300 leading-relaxed">
-                To run Mariner Pro-Link as an independent app without needing Chrome open or an internet connection:
-              </p>
-              <div className="text-[10px] text-slate-400 font-mono space-y-1 bg-slate-900/90 p-2 rounded-lg border border-slate-800">
-                <div>📱 <strong className="text-white">Android:</strong> Tap Chrome Menu (⋮) → <span className="text-cyan-300">"Install app"</span> or <span className="text-cyan-300">"Add to Home screen"</span>.</div>
-                <div>🍏 <strong className="text-white">iPhone/iPad:</strong> Tap Safari Share (⎋) → <span className="text-cyan-300">"Add to Home Screen"</span>.</div>
-              </div>
-            </div>
-
-            {/* Description */}
-            <p className="text-xs text-slate-400 leading-relaxed">
-              Mariner Pro-Link provides real-time marine heading & GPS telemetry transmission over USB OTG serial, converting smartphone IMU & GNSS sensors into standard NMEA 0183 navigation data for marine chartplotters, autopilots, and repeaters.
-            </p>
-
             {/* Contact Developer Button with mailto to official email */}
             <div className="flex flex-col gap-2 pt-2 border-t border-slate-800">
               <a
                 href={`mailto:${OFFICIAL_SUPPORT_EMAIL}?subject=Mariner%20Pro-Link%20V1.0%20Support%20%26%20Feedback`}
-                className={`w-full py-3 px-4 rounded-xl font-bold text-xs flex items-center justify-center gap-2.5 shadow-lg transition-all ${
+                className={`w-full py-2.5 px-4 rounded-xl font-bold text-xs flex items-center justify-center gap-2.5 shadow-lg transition-all ${
                   isNightMode
                     ? 'bg-red-600 hover:bg-red-500 text-white shadow-red-950'
                     : 'bg-cyan-500 hover:bg-cyan-400 text-slate-950 shadow-cyan-950 font-black'
@@ -682,4 +589,3 @@ export const Header: React.FC<HeaderProps> = ({
     </header>
   );
 };
-
