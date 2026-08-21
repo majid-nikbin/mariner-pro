@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { CompassData, GpsData, HeadingSource, NmeaConfig, SerialPortStatus } from './types';
 import { useSensors } from './hooks/useSensors';
 import { serialService } from './services/serialService';
@@ -12,13 +12,86 @@ import { UsbDriverGuide } from './components/UsbDriverGuide';
 import { KeyGenTab } from './components/KeyGenTab';
 import { ActivationModal } from './components/ActivationModal';
 import { formatMarineDDM } from './utils/geo';
-import { Radio } from 'lucide-react';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('nav');
   const [headingSource, setHeadingSource] = useState<HeadingSource>('magnetic');
   const [isNightMode, setIsNightMode] = useState<boolean>(false);
   const [isActivated, setIsActivated] = useState<boolean>(() => getLicenseStatus().isActivated);
+  const [exitToast, setExitToast] = useState<string | null>(null);
+
+  const lastBackPressTime = useRef<number>(0);
+  const activeTabRef = useRef<ActiveTab>(activeTab);
+
+  useEffect(() => {
+    activeTabRef.current = activeTab;
+  }, [activeTab]);
+
+  // Handle Android Hardware Back Button / Browser Back Button
+  useEffect(() => {
+    // Push dummy history state so hardware back button can be intercepted
+    window.history.pushState({ page: 'marine-app' }, '', '');
+
+    const handlePopState = () => {
+      // 1. If currently on a sub-tab (Transmit, Monitor, Drivers, KeyGen), return to Main Navigation screen
+      if (activeTabRef.current !== 'nav') {
+        setActiveTab('nav');
+        window.history.pushState({ page: 'marine-app' }, '', '');
+        return;
+      }
+
+      // 2. If already on Main Navigation screen, require double tap within 2 seconds to exit
+      const now = Date.now();
+      if (now - lastBackPressTime.current < 2000) {
+        // Double tap confirmed -> Allow exit/close
+        // If inside Capacitor Android App, try to exit
+        const cap = (window as any).Capacitor;
+        if (cap && cap.Plugins && cap.Plugins.App) {
+          cap.Plugins.App.exitApp();
+        } else {
+          window.history.back();
+        }
+      } else {
+        lastBackPressTime.current = now;
+        setExitToast('Press BACK again to exit Mariner Pro');
+        setTimeout(() => setExitToast(null), 2000);
+        window.history.pushState({ page: 'marine-app' }, '', '');
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+
+    // Also attach Capacitor Android hardware back button listener if running in APK
+    const attachCapacitorBackButton = async () => {
+      const cap = (window as any).Capacitor;
+      if (cap && cap.Plugins && cap.Plugins.App) {
+        try {
+          await cap.Plugins.App.addListener('backButton', () => {
+            if (activeTabRef.current !== 'nav') {
+              setActiveTab('nav');
+            } else {
+              const now = Date.now();
+              if (now - lastBackPressTime.current < 2000) {
+                cap.Plugins.App.exitApp();
+              } else {
+                lastBackPressTime.current = now;
+                setExitToast('Press BACK again to exit Mariner Pro');
+                setTimeout(() => setExitToast(null), 2000);
+              }
+            }
+          });
+        } catch (e) {
+          console.warn('Capacitor App plugin not initialized:', e);
+        }
+      }
+    };
+
+    attachCapacitorBackButton();
+
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, []);
 
   // Default NMEA Output Configuration
   const [nmeaConfig, setNmeaConfig] = useState<NmeaConfig>({
@@ -89,6 +162,13 @@ export default function App() {
         isNightMode ? 'bg-[#090505] text-red-100' : 'bg-[#0F172A] text-slate-200'
       }`}
     >
+      {/* Back Button Exit Warning Toast */}
+      {exitToast && (
+        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 bg-slate-900/95 border border-cyan-500/50 text-cyan-300 px-5 py-2.5 rounded-full shadow-2xl text-xs font-bold tracking-wide animate-fadeIn">
+          {exitToast}
+        </div>
+      )}
+
       {/* Clean Marine Header Navigation */}
       <Header
         activeTab={activeTab}
@@ -100,9 +180,9 @@ export default function App() {
         onToggleNightMode={() => setIsNightMode(!isNightMode)}
       />
 
-      {/* Main Content Area */}
-      <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 flex flex-col gap-6">
-        {/* Tab 1: Navigation View (Compass Dial ~1/3 Screen + Marine GPS Lower Screen) */}
+      {/* Main Content Area - Fully Scrollable */}
+      <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 flex flex-col gap-6 overflow-y-auto">
+        {/* Tab 1: Navigation View */}
         {activeTab === 'nav' && (
           <div className="flex flex-col gap-6">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
@@ -147,7 +227,7 @@ export default function App() {
           </div>
         )}
 
-        {/* Tab 2: NMEA 0183 Output (Transmitter Configuration & Sentences) */}
+        {/* Tab 2: NMEA 0183 Output */}
         {activeTab === 'transmit' && (
           <NmeaTransmitter
             gps={gps}
@@ -159,7 +239,7 @@ export default function App() {
           />
         )}
 
-        {/* Tab 3: NMEA 0183 Monitor (Live RX Stream & Decoder with USB connection) */}
+        {/* Tab 3: NMEA 0183 Monitor */}
         {activeTab === 'monitor' && (
           <NmeaMonitor
             serialStatus={serialStatus}

@@ -9,7 +9,6 @@ import {
   ShieldCheck, 
   Terminal, 
   Lock, 
-  Mail,
   UserCheck
 } from 'lucide-react';
 import { 
@@ -64,43 +63,43 @@ export const KeyGenTab: React.FC<KeyGenTabProps> = ({ isNightMode }) => {
   };
 
   return (
-    <div className="flex flex-col gap-6 max-w-5xl mx-auto">
-      {/* Top Banner */}
+    <div className="flex flex-col gap-5 max-w-5xl mx-auto w-full pb-10">
+      {/* Top Banner - Compact & Clean */}
       <div 
-        className={`p-6 rounded-2xl border shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4 ${
+        className={`p-4 sm:p-5 rounded-2xl border shadow-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 ${
           isNightMode 
             ? 'bg-zinc-950/90 border-red-900/60 text-red-100' 
-            : 'bg-gradient-to-r from-slate-900 via-slate-850 to-cyan-950/40 border-cyan-500/40 text-slate-100'
+            : 'bg-slate-900 border-cyan-500/40 text-slate-100'
         }`}
       >
-        <div className="flex items-center gap-4">
-          <div className="p-3.5 bg-amber-500/10 border border-amber-500/30 rounded-2xl text-amber-400">
-            <KeyRound className="w-8 h-8" />
+        <div className="flex items-center gap-3.5">
+          <div className="p-2.5 bg-amber-500/10 border border-amber-500/30 rounded-xl text-amber-400">
+            <KeyRound className="w-6 h-6" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="text-lg font-bold text-white tracking-wide">Developer License Key Generator</h2>
+              <h2 className="text-base font-bold text-white tracking-wide">Developer License Key Generator</h2>
               <span className="px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[10px] font-mono font-bold">
-                Developer Console
+                Console
               </span>
             </div>
-            <p className="text-xs text-slate-400 mt-1">
-              Generate cryptographic activation keys for user devices based on their unique Device ID.
+            <p className="text-xs text-slate-400 mt-0.5">
+              Enter target Device ID to produce offline activation key.
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-3 bg-slate-950/80 px-4 py-2.5 rounded-xl border border-slate-800 text-xs font-mono">
+        <div className="flex items-center gap-2.5 bg-slate-950/80 px-3 py-2 rounded-xl border border-slate-800 text-xs font-mono">
           <UserCheck className="w-4 h-4 text-emerald-400" />
-          <span className="text-slate-400">Developer:</span>
+          <span className="text-slate-400">Dev:</span>
           <span className="text-emerald-400 font-bold">M.Nikbin</span>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
         {/* Generator Form */}
-        <div className="lg:col-span-7 flex flex-col gap-5">
-          <div className="p-6 bg-slate-900/90 rounded-2xl border border-slate-700/80 shadow-lg flex flex-col gap-5">
+        <div className="lg:col-span-7 flex flex-col gap-4">
+          <div className="p-5 sm:p-6 bg-slate-900/90 rounded-2xl border border-slate-700/80 shadow-lg flex flex-col gap-4">
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
               <span className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2">
                 <Terminal className="w-4 h-4 text-cyan-400" />
@@ -111,22 +110,22 @@ export const KeyGenTab: React.FC<KeyGenTabProps> = ({ isNightMode }) => {
                 onClick={() => setTargetDeviceId(currentDeviceId)}
                 className="text-[11px] text-cyan-400 hover:text-cyan-300 underline font-mono"
               >
-                Use Current Device ID ({currentDeviceId})
+                Use My ID ({currentDeviceId})
               </button>
             </div>
 
-            <form onSubmit={handleGenerate} className="flex flex-col gap-4">
+            <form onSubmit={handleGenerate} className="flex flex-col gap-3.5">
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-bold text-slate-400 flex items-center gap-1.5">
                   <Smartphone className="w-4 h-4 text-cyan-400" />
-                  User Device ID (e.g. MAR-XXXX-YYYY):
+                  User Device ID:
                 </label>
                 <input
                   type="text"
                   value={targetDeviceId}
                   onChange={(e) => setTargetDeviceId(e.target.value)}
-                  placeholder="MAR-A82F-7K29"
-                  className="w-full bg-slate-950 border border-slate-700 focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 rounded-xl px-4 py-3 font-mono text-base font-bold text-white placeholder-slate-600 outline-none uppercase"
+                  placeholder="MAR-XXXX-YYYY"
+                  className="w-full bg-slate-950 border border-slate-700 focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 rounded-xl px-4 py-2.5 font-mono text-base font-bold text-white placeholder-slate-600 outline-none uppercase"
                 />
               </div>
 
@@ -145,19 +144,19 @@ export const KeyGenTab: React.FC<KeyGenTabProps> = ({ isNightMode }) => {
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-amber-300 flex items-center gap-1.5">
                     <ShieldCheck className="w-4 h-4 text-emerald-400" />
-                    Generated Activation Key for {targetDeviceId.toUpperCase()}:
+                    Key for {targetDeviceId.toUpperCase()}:
                   </span>
                   <span className="text-[10px] text-emerald-400 font-mono">100% Valid</span>
                 </div>
 
                 <div className="flex items-center justify-between bg-slate-900 p-3 rounded-lg border border-slate-700">
-                  <span className="font-mono text-base sm:text-lg font-black text-cyan-300 tracking-wider select-all">
+                  <span className="font-mono text-base sm:text-lg font-black text-cyan-300 tracking-wider select-all break-all">
                     {generatedKey}
                   </span>
                   <button
                     type="button"
                     onClick={handleCopyKey}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 rounded-md text-xs font-bold transition-all"
+                    className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 rounded-md text-xs font-bold transition-all ml-2"
                   >
                     {copiedKey ? (
                       <>
@@ -167,7 +166,7 @@ export const KeyGenTab: React.FC<KeyGenTabProps> = ({ isNightMode }) => {
                     ) : (
                       <>
                         <Copy className="w-3.5 h-3.5" />
-                        <span>Copy Key</span>
+                        <span>Copy</span>
                       </>
                     )}
                   </button>
@@ -192,7 +191,7 @@ export const KeyGenTab: React.FC<KeyGenTabProps> = ({ isNightMode }) => {
                       className="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xs rounded-lg flex items-center gap-1.5"
                     >
                       <Send className="w-3.5 h-3.5" />
-                      <span>Send Email</span>
+                      <span>Send</span>
                     </button>
                   </div>
                 </div>
@@ -202,30 +201,30 @@ export const KeyGenTab: React.FC<KeyGenTabProps> = ({ isNightMode }) => {
         </div>
 
         {/* Right Column: Key Details & History */}
-        <div className="lg:col-span-5 flex flex-col gap-5">
-          <div className="p-6 bg-slate-900/90 rounded-2xl border border-slate-700/80 shadow-lg flex flex-col gap-4">
+        <div className="lg:col-span-5 flex flex-col gap-4">
+          <div className="p-5 bg-slate-900/90 rounded-2xl border border-slate-700/80 shadow-lg flex flex-col gap-3.5">
             <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2">
               <Lock className="w-4 h-4 text-amber-400" />
               Licensing Specifications
             </h3>
 
-            <div className="space-y-2.5 text-xs font-mono">
-              <div className="flex justify-between p-2.5 bg-slate-950 rounded-lg border border-slate-800">
+            <div className="space-y-2 text-xs font-mono">
+              <div className="flex justify-between p-2 bg-slate-950 rounded-lg border border-slate-800">
                 <span className="text-slate-400">Algorithm:</span>
-                <span className="text-cyan-400 font-bold">HMAC/SHA Hash Hash-Digest</span>
+                <span className="text-cyan-400 font-bold">HMAC/SHA Hash-Digest</span>
               </div>
-              <div className="flex justify-between p-2.5 bg-slate-950 rounded-lg border border-slate-800">
+              <div className="flex justify-between p-2 bg-slate-950 rounded-lg border border-slate-800">
                 <span className="text-slate-400">Format:</span>
                 <span className="text-amber-400 font-bold">ACT-XXXX-YYYY-ZZZZ</span>
               </div>
-              <div className="flex justify-between p-2.5 bg-slate-950 rounded-lg border border-slate-800">
-                <span className="text-slate-400">Official Support Mail:</span>
-                <span className="text-slate-200">{OFFICIAL_SUPPORT_EMAIL}</span>
+              <div className="flex justify-between p-2 bg-slate-950 rounded-lg border border-slate-800">
+                <span className="text-slate-400">Support Mail:</span>
+                <span className="text-slate-200 truncate ml-2">{OFFICIAL_SUPPORT_EMAIL}</span>
               </div>
             </div>
 
             {/* Recent History */}
-            <div className="flex flex-col gap-2 pt-3 border-t border-slate-800">
+            <div className="flex flex-col gap-2 pt-2 border-t border-slate-800">
               <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
                 Recent Generated Keys:
               </span>
