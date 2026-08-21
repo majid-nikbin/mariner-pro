@@ -32,9 +32,43 @@ jobs:
 
       - name: Install & Configure Capacitor
         run: |
-          npm install @capacitor/core @capacitor/cli @capacitor/android
+          npm install @capacitor/core @capacitor/cli @capacitor/android @capacitor/app
           npx cap init "Mariner Pro" "com.mariner.pro" --web-dir "dist"
           npx cap add android
+
+      - name: Generate & Inject Custom Marine Compass App Icon (All Densities)
+        run: |
+          npm install sharp
+          node -e '
+            const sharp = require("sharp");
+            const fs = require("fs");
+            const path = require("path");
+
+            const iconSource = fs.existsSync("public/app-icon.jpg") 
+              ? "public/app-icon.jpg" 
+              : "src/assets/images/app_marine_compass_icon_1787315506167.jpg";
+
+            const resMap = {
+              "mipmap-mdpi": 48,
+              "mipmap-hdpi": 72,
+              "mipmap-xhdpi": 96,
+              "mipmap-xxhdpi": 144,
+              "mipmap-xxxhdpi": 192
+            };
+
+            async function generateIcons() {
+              for (const [folder, size] of Object.entries(resMap)) {
+                const targetDir = path.join("android/app/src/main/res", folder);
+                if (fs.existsSync(targetDir)) {
+                  await sharp(iconSource).resize(size, size).toFile(path.join(targetDir, "ic_launcher.png"));
+                  await sharp(iconSource).resize(size, size).toFile(path.join(targetDir, "ic_launcher_round.png"));
+                  await sharp(iconSource).resize(size, size).toFile(path.join(targetDir, "ic_launcher_foreground.png"));
+                }
+              }
+              console.log("Custom Antique Marine Compass Icons successfully injected into all Android mipmap folders!");
+            }
+            generateIcons();
+          '
 
       - name: Configure Android Permissions & Hardware Access
         run: |
