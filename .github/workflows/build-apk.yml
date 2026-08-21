@@ -55,12 +55,30 @@ jobs:
           print('Successfully injected icons into all Android mipmap directories!')
           "
 
-      - name: Configure Android Permissions & Hardware Access
+      - name: Configure Android Permissions, Hardware Access & APK Size Optimization
         run: |
           MANIFEST_PATH="android/app/src/main/AndroidManifest.xml"
           if [ -f "$MANIFEST_PATH" ]; then
-            sed -i '/<\/manifest>/i \    <uses-feature android:name="android.hardware.usb.host" android:required="true" />\n    <uses-permission android:name="android.permission.USB_PERMISSION" />\n    <uses-permission android:name="android.permission.WAKE_LOCK" />\n    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />\n    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />' $MANIFEST_PATH
+            sed -i '/<\/manifest>/i \    <uses-feature android:name="android.hardware.usb.host" android:required="false" />\n    <uses-permission android:name="android.permission.USB_PERMISSION" />\n    <uses-permission android:name="android.permission.WAKE_LOCK" />\n    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />\n    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />' $MANIFEST_PATH
           fi
+
+          # Strip x86 emulator binaries to drastically reduce APK size
+          python3 -c "
+          gradle_file = 'android/app/build.gradle'
+          with open(gradle_file, 'r') as f:
+              code = f.read()
+          abi_filter = '''
+        ndk {
+            abiFilters 'armeabi-v7a', 'arm64-v8a'
+        }
+'''
+          if 'defaultConfig {' in code and 'abiFilters' not in code:
+              code = code.replace('defaultConfig {', 'defaultConfig {' + abi_filter)
+          with open(gradle_file, 'w') as f:
+              f.write(code)
+          print('Injected ARM ABI filters to drastically reduce APK size!')
+          "
+
           npx cap sync android
 
       - name: Setup Gradle
